@@ -16,8 +16,8 @@ const filter = {
     "*://twitter.com/*",
     "*://www.bbc.com/*",
     "*://youtbe.com/*",
-    "*://theguardian.com/*",
-    "*://cnn.com/*",
+    "*://www.theguardian.com/*",
+    "*://www.cnn.com/*",
   ],
 };
 
@@ -37,24 +37,29 @@ const webRequestFlags = ["blocking"];
 // Because we outsourced the URL filtering to chrome itself
 // all we need to do here is always cancel the request (as
 // it matches the filter of unwanted webpages).
-// TODO: start timer
-// TODO: store what tab is blocked so that when timer is pressed it updates
+// TODO: store what tabs are blocked so that when timer is pressed it updates
 
-var block = true;
+var unblockSeconds = 10 * 60;
+var resetInSeconds = 3 * 60 * 60;
 
 chrome.webRequest.onBeforeRequest.addListener(
   (page) => {
-    if (block) {
-      console.log("page blocked - " + page.url);
-      chrome.tabs.update({ url: chrome.runtime.getURL("index.html") });
-      return {
-        cancel: true,
-      };
-    } else {
-      return {
-        cancel: false,
-      };
-    }
+    chrome.storage.sync.get(["blockAt"], function (result) {
+      const { blockAt = 0 } = result;
+      var secondsTillBlock = (blockAt - Date.now) / 1000;
+      console.log(`Blocking in ${blockAt} seconds`);
+      if (blockAt < Date.now()) {
+        console.log("page blocked - " + page.url);
+        chrome.tabs.update({ url: chrome.runtime.getURL("index.html") });
+        return {
+          cancel: true,
+        };
+      } else {
+        return {
+          cancel: false,
+        };
+      }
+    });
   },
   filter,
   webRequestFlags
@@ -68,7 +73,11 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   if (request.startTimer) {
-    sendResponse({ response: "timer started" });
-    block = false;
+    var blockAt = Date.now() + unblockSeconds * 1000;
+    var resetAt = Date.now() + resetInSeconds * 1000;
+    chrome.storage.sync.set({ blockAt, resetAt }, function () {
+      sendResponse({ response: `timer started at ${blockAt}` });
+      console.log("Value is set to " + blockAt);
+    });
   }
 });

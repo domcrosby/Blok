@@ -5,7 +5,7 @@ startTimer = () => {
       startTimer: true,
     },
     function () {
-      alert("timer sent");
+      alert("block timer started");
     }
   );
 };
@@ -14,12 +14,19 @@ startTimer = () => {
 window.addEventListener("load", (event) => {
   // assign the button
   var button = document.getElementById("startTimer");
-  // add the start timer function
-  button.addEventListener(
-    "click",
-    () => {
-      startTimer();
-    },
-    false
-  );
+  button.style.display = "none";
+  chrome.storage.sync.get(["resetAt"], function (result) {
+    const { resetAt = 0 } = result;
+    if (resetAt < Date.now()) {
+      button.style.display = "inline";
+      // add the start timer function
+      button.addEventListener(
+        "click",
+        () => {
+          startTimer();
+        },
+        false
+      );
+    }
+  });
 });
